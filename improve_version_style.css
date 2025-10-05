@@ -1,0 +1,113 @@
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Poppins', sans-serif;
+}
+
+body {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border: 10px solid white;
+    overflow: hidden;
+}
+
+body::after {
+    content: "";
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; 
+    height: 100%;
+    background: 
+        linear-gradient(rgba(0,128,0,0.7), rgba(46,198,249,0.8)),
+        url('../img/background.jpeg') center/cover no-repeat;
+    background-attachment: fixed;
+    clip-path: polygon(0 0, 100% 0, 100% 80%, 0% 95%);
+    z-index: -1;
+}
+
+.logo-box{
+    position: relative;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    top: 40px;          
+    left: 50px;         
+}
+
+.text-box{
+    position: relative;
+    font-weight: 300;
+    font-size: 30px;
+    color: white;
+    text-align: center;
+    margin-top: 160px;
+    background: none;
+}
+
+.main{
+    z-index: 2;
+    color: #ffffff;
+    font-size: 100px;
+    font-weight: 700;
+    letter-spacing: 50px; 
+    display: inline-block;
+    animation: slideInLeft 1s ease-out;
+}
+
+.sub {
+    font-size: 50px;
+    margin-top: 1px; 
+    display: block;
+    letter-spacing: 20px; 
+    animation: slideInRight 1.75s ease-out;
+}
+
+.btn {
+    position: relative;
+    z-index: 2;
+    background-color: white;
+    color: rgba(128, 128, 128, 0.5);
+    padding: 15px 32px;
+    text-align: center;
+    text-decoration: none;
+    font-size: 30px;
+    cursor: pointer;
+    border-radius: 45px;
+    border: 4px solid #fff;
+    margin-top: 40px;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.btn:hover {
+    font-size: 31px;
+    box-shadow: 0 8px 24px rgba(0, 48, 48, 0.76);
+}
+
+@keyframes slideInLeft {
+    0% {
+        opacity: 0;
+        transform: translateX(-200px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideInRight {
+    0% {
+        opacity: 0;
+        transform: translateX(200px);
+    }
+    80% {
+        opacity: 0.5;
+        transform: translateX(-40px);
+    }
+    100%{
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
