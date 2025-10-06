@@ -1,0 +1,67 @@
+#include <iostream>
+#include <thread>
+#include <cstring>
+#include <arpa/inet.h>
+#include <unistd.h>
+
+void receiveLoop(int sock) {
+    char buf[1024];
+    while (true) {
+        int n = recv(sock, buf, sizeof(buf) - 1, 0);
+        if (n <= 0) break;
+        buf[n] = '\0';
+        std::cout << "\rFriend: " << buf << "\nYou: " << std::flush;
+    }
+}
+
+int main() {
+    std::string mode;
+    std::cout << "Enter mode (host/client): ";
+    std::cin >> mode;
+
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    sockaddr_in addr{};
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(5000);
+
+    if (mode == "host") {
+        addr.sin_addr.s_addr = INADDR_ANY;
+        bind(sock, (sockaddr*)&addr, sizeof(addr));
+        listen(sock, 1);
+        std::cout << "Waiting for connection...\n";
+        int clientSock = accept(sock, nullptr, nullptr);
+        std::cout << "Client connected!\n";
+        std::thread recvThread(receiveLoop, clientSock);
+
+        std::cin.ignore();
+        std::string msg;
+        while (true) {
+            std::cout << "You: ";
+            std::getline(std::cin, msg);
+            if (msg == "quit") break;
+            send(clientSock, msg.c_str(), msg.size(), 0);
+        }
+        close(clientSock);
+        recvThread.join();
+    } else { // client
+        std::string ip;
+        std::cout << "Enter host IP: ";
+        std::cin >> ip;
+        addr.sin_addr.s_addr = inet_addr(ip.c_str());
+        connect(sock, (sockaddr*)&addr, sizeof(addr));
+        std::cout << "Connected to host!\n";
+        std::thread recvThread(receiveLoop, sock);
+
+        std::cin.ignore();
+        std::string msg;
+        while (true) {
+            std::cout << "You: ";
+            std::getline(std::cin, msg);
+            if (msg == "quit") break;
+            send(sock, msg.c_str(), msg.size(), 0);
+        }
+        close(sock);
+        recvThread.join();
+    }
+    return 0;
+}
