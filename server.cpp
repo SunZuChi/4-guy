@@ -1,4 +1,4 @@
-// server.cpp
+// server.cpp (fixed version with WHO)
 #include <mqueue.h>
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -31,53 +31,43 @@ const std::chrono::seconds HEARTBEAT_TIMEOUT = 30s;
 
 std::atomic<bool> running{true};
 
-// --- data structures ---
 struct BroadcastTask {
-    std::vector<std::string> recipients; // clientids
+    std::vector<std::string> recipients;
     std::string message;
 };
 
-// registries
-std::unordered_map<std::string, mqd_t> client_mq; // clientid -> mqd_t (server's descriptor)
-std::unordered_map<std::string, std::unordered_set<std::string>> room_members; // room -> set(clientid)
-std::unordered_map<std::string, std::chrono::steady_clock::time_point> last_seen; // clientid -> last heartbeat time
+std::unordered_map<std::string, mqd_t> client_mq;
+std::unordered_map<std::string, std::unordered_set<std::string>> room_members;
+std::unordered_map<std::string, std::chrono::steady_clock::time_point> last_seen;
 
 std::shared_mutex clients_mutex;
 std::shared_mutex rooms_mutex;
 std::shared_mutex seen_mutex;
 
-// task queue
 std::queue<BroadcastTask> tasks;
 std::mutex tasks_mtx;
 std::condition_variable tasks_cv;
 
-// helper: trim
 static inline void ltrim(std::string &s) {
-    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch){ return !std::isspace(ch); }));
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(),
+        [](unsigned char ch){ return !std::isspace(ch); }));
 }
 static inline void rtrim(std::string &s) {
-    s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch){ return !std::isspace(ch); }).base(), s.end());
+    s.erase(std::find_if(s.rbegin(), s.rend(),
+        [](unsigned char ch){ return !std::isspace(ch); }).base(), s.end());
 }
-static inline void trim(std::string &s) { ltrim(s); rtrim(s); }
+static inline void trim(std::string &s) {
+    ltrim(s); rtrim(s);
+}
 
-// helper: send message to one client (by mqd_t)
 bool send_to_mqd(mqd_t mqd, const std::string &msg) {
-    if (msg.size() > MAX_MSG_SIZE) {
-        std::cerr << "Warning: message truncated for mq_send\n";
-    }
     if (mq_send(mqd, msg.c_str(), std::min(msg.size(), MAX_MSG_SIZE), 0) == -1) {
-        if (errno == EAGAIN) {
-            // queue full, message dropped (policy)
-            return false;
-        } else {
-            std::cerr << "mq_send error: " << strerror(errno) << "\n";
-            return false;
-        }
+        std::cerr << "mq_send error: " << strerror(errno) << "\n";
+        return false;
     }
     return true;
 }
 
-// broadcast worker
 void broadcaster_worker() {
     while (running) {
         BroadcastTask t;
@@ -89,32 +79,25 @@ void broadcaster_worker() {
             tasks.pop();
         }
         for (auto &clientid : t.recipients) {
-            mqd_t target = (mqd_t) -1;
+            mqd_t target = (mqd_t)-1;
             {
                 std::shared_lock<std::shared_mutex> lock(clients_mutex);
                 auto it = client_mq.find(clientid);
-                if (it == client_mq.end()) continue;
-                target = it->second;
+                if (it != client_mq.end()) target = it->second;
             }
-            if (target != (mqd_t)-1) {
-                bool ok = send_to_mqd(target, t.message);
-                if (!ok) {
-                    // policy: drop; could also enqueue a system notice back to sender
-                }
-            }
+            if (target != (mqd_t)-1)
+                send_to_mqd(target, t.message);
         }
     }
 }
 
-// queue a broadcast by room (server side)
 void queue_broadcast_to_room(const std::string &room, const std::string &message) {
     std::vector<std::string> recip;
     {
         std::shared_lock<std::shared_mutex> lock(rooms_mutex);
         auto it = room_members.find(room);
-        if (it != room_members.end()) {
+        if (it != room_members.end())
             recip.insert(recip.end(), it->second.begin(), it->second.end());
-        }
     }
     if (!recip.empty()) {
         BroadcastTask t{std::move(recip), message};
@@ -126,8 +109,8 @@ void queue_broadcast_to_room(const std::string &room, const std::string &message
     }
 }
 
-// queue a broadcast to explicit recipients
-void queue_broadcast_to_clients(const std::vector<std::string> &clients, const std::string &message) {
+void queue_broadcast_to_clients(const std::vector<std::string> &clients,
+                                const std::string &message) {
     BroadcastTask t{clients, message};
     {
         std::lock_guard<std::mutex> lk(tasks_mtx);
@@ -136,23 +119,17 @@ void queue_broadcast_to_clients(const std::vector<std::string> &clients, const s
     tasks_cv.notify_one();
 }
 
-// remove client from all rooms (internal)
 void remove_client_from_all_rooms(const std::string &clientid) {
     std::unique_lock<std::shared_mutex> lock(rooms_mutex);
-    for (auto &p : room_members) {
-        p.second.erase(clientid);
-    }
+    for (auto &p : room_members) p.second.erase(clientid);
 }
 
-// router thread: consumes control queue and acts
 void router_thread_func(mqd_t control_mqd) {
     char buf[MAX_MSG_SIZE+1];
+
     while (running) {
         ssize_t n = mq_receive(control_mqd, buf, MAX_MSG_SIZE, nullptr);
         if (n == -1) {
-            if (errno == EINTR) continue;
-            std::cerr << "mq_receive error on control: " << strerror(errno) << "\n";
-            // Sleep briefly and continue, but you might also choose to break
             std::this_thread::sleep_for(100ms);
             continue;
         }
@@ -161,21 +138,20 @@ void router_thread_func(mqd_t control_mqd) {
         trim(line);
         if (line.empty()) continue;
 
-        // parse: commands start with WORD
         std::istringstream iss(line);
         std::string cmd;
         iss >> cmd;
+
+        // ---------------- REGISTER ----------------
         if (cmd == "REGISTER") {
             std::string clientid;
             iss >> clientid;
             if (clientid.empty()) continue;
-            std::string replyq = "/" + std::string("reply_") + clientid;
-            // open reply queue for write
+
+            std::string replyq = "/reply_" + clientid;
             mqd_t mq = mq_open(replyq.c_str(), O_WRONLY);
-            if (mq == (mqd_t)-1) {
-                std::cerr << "REGISTER: cannot open client reply queue " << replyq << " : " << strerror(errno) << "\n";
-                // ignore; client might not have created it yet; we could retry on first send
-            } else {
+
+            if (mq != (mqd_t)-1) {
                 {
                     std::unique_lock<std::shared_mutex> lock(clients_mutex);
                     client_mq[clientid] = mq;
@@ -184,92 +160,150 @@ void router_thread_func(mqd_t control_mqd) {
                     std::unique_lock<std::shared_mutex> s(seen_mutex);
                     last_seen[clientid] = std::chrono::steady_clock::now();
                 }
-                std::string sys = "SYSTEM " + clientid + " registered";
-                std::cerr << sys << "\n";
+
+                std::cerr << "[SERVER] REGISTER: " << clientid << "\n";
             }
-        } else if (cmd == "JOIN") {
+        }
+
+        // ---------------- JOIN ----------------
+        else if (cmd == "JOIN") {
             std::string clientid, room;
             iss >> clientid >> room;
             if (clientid.empty() || room.empty()) continue;
+
             {
                 std::unique_lock<std::shared_mutex> lock(rooms_mutex);
                 room_members[room].insert(clientid);
             }
+
             std::string notice = "SYSTEM " + clientid + " joined " + room;
             queue_broadcast_to_room(room, notice);
-        } else if (cmd == "LEAVE") {
+
+            {
+                std::shared_lock<std::shared_mutex> lock(clients_mutex);
+                auto it = client_mq.find(clientid);
+                if (it != client_mq.end())
+                    send_to_mqd(it->second, "SYSTEM: You joined " + room);
+            }
+
+            std::cerr << "[SERVER] " << clientid << " joined " << room << "\n";
+        }
+
+        // ---------------- LEAVE ----------------
+        else if (cmd == "LEAVE") {
             std::string clientid, room;
             iss >> clientid >> room;
             if (clientid.empty() || room.empty()) continue;
+
             {
                 std::unique_lock<std::shared_mutex> lock(rooms_mutex);
                 auto it = room_members.find(room);
-                if (it != room_members.end()) it->second.erase(clientid);
+                if (it != room_members.end())
+                    it->second.erase(clientid);
             }
+
             std::string notice = "SYSTEM " + clientid + " left " + room;
             queue_broadcast_to_room(room, notice);
-        } else if (cmd == "SAY") {
+
+            {
+                std::shared_lock<std::shared_mutex> lock(clients_mutex);
+                auto it = client_mq.find(clientid);
+                if (it != client_mq.end())
+                    send_to_mqd(it->second, "SYSTEM: You left " + room);
+            }
+
+            std::cerr << "[SERVER] " << clientid << " left " << room << "\n";
+        }
+
+        // ---------------- SAY ----------------
+        else if (cmd == "SAY") {
             std::string clientid, room;
             iss >> clientid >> room;
-            std::string rest;
-            std::getline(iss, rest);
-            trim(rest);
-            if (clientid.empty() || room.empty() || rest.empty()) continue;
-            bool in_room = false;
-    {
-        std::shared_lock<std::shared_mutex> lock(rooms_mutex);
-        auto it = room_members.find(room);
-        if (it != room_members.end()) {
-            in_room = it->second.count(clientid) > 0;
+            std::string msg;
+            std::getline(iss, msg);
+            trim(msg);
+            if (clientid.empty() || room.empty() || msg.empty()) continue;
+
+            std::string notice = clientid + ": " + msg;
+            queue_broadcast_to_room(room, "SAY " + room + " " + notice);
+
+            std::cerr << "[SERVER] " << clientid << " said in " << room << ": " << msg << "\n";
         }
-    }
-    if (!in_room) {
-        // optionally send a system notice back to client
-        mqd_t mq = (mqd_t)-1;
-        {
-            std::shared_lock<std::shared_mutex> lock(clients_mutex);
-            auto it = client_mq.find(clientid);
-            if (it != client_mq.end()) mq = it->second;
+
+        // ---------------- DM ----------------
+        else if (cmd == "DM") {
+            std::string sender, target;
+            iss >> sender >> target;
+            std::string msg;
+            std::getline(iss, msg);
+            trim(msg);
+            if (sender.empty() || target.empty() || msg.empty()) continue;
+
+            std::string fullmsg = "DM from " + sender + ": " + msg;
+            {
+                std::shared_lock<std::shared_mutex> lock(clients_mutex);
+                auto it = client_mq.find(target);
+                if (it != client_mq.end())
+                    send_to_mqd(it->second, fullmsg);
+            }
+
+            std::cerr << "[SERVER] " << sender << " -> " << target << ": " << msg << "\n";
         }
-        if (mq != (mqd_t)-1) send_to_mqd(mq, "SYSTEM: You cannot SAY to a room you are not in");
-        continue;
-    }
-            std::string msg = clientid + " (room " + room + "): " + rest;
-            queue_broadcast_to_room(room, msg);
-        } else if (cmd == "DM") {
-            std::string clientid, target;
-            iss >> clientid >> target;
-            std::string rest;
-            std::getline(iss, rest);
-            trim(rest);
-            if (clientid.empty() || target.empty() || rest.empty()) continue;
-            std::vector<std::string> one = { target };
-            std::string msg = clientid + " (DM): " + rest;
-            queue_broadcast_to_clients(one, msg);
-        } else if (cmd == "WHO") {
+
+        // ---------------- WHO ----------------
+        else if (cmd == "WHO") {
+            // Expected from client: "WHO <clientid> <room>"
             std::string clientid, room;
             iss >> clientid >> room;
             if (clientid.empty() || room.empty()) continue;
-            std::string members_list = "WHO " + room + ":";
+
+            std::vector<std::string> members;
             {
                 std::shared_lock<std::shared_mutex> lock(rooms_mutex);
                 auto it = room_members.find(room);
                 if (it != room_members.end()) {
-                    for (auto &m : it->second) members_list += " " + m;
+                    members.insert(members.end(), it->second.begin(), it->second.end());
                 }
             }
-            // send directly to clientid
-            mqd_t mq = (mqd_t)-1;
+
+            std::string reply;
+            if (members.empty()) {
+                reply = "SYSTEM: Room '" + room + "' has no members.";
+            } else {
+                // join members with ", "
+                std::ostringstream oss;
+                for (size_t i = 0; i < members.size(); ++i) {
+                    if (i) oss << ", ";
+                    oss << members[i];
+                }
+                reply = "SYSTEM: Members in " + room + ": " + oss.str();
+            }
+
+            // send reply only to requesting client
             {
                 std::shared_lock<std::shared_mutex> lock(clients_mutex);
                 auto it = client_mq.find(clientid);
-                if (it != client_mq.end()) mq = it->second;
+                if (it != client_mq.end()) {
+                    send_to_mqd(it->second, reply);
+                }
             }
-            if (mq != (mqd_t)-1) send_to_mqd(mq, members_list);
-        } else if (cmd == "QUIT") {
-            std::string clientid; iss >> clientid;
+
+            std::cerr << "[SERVER] WHO " << clientid << " for room " << room << "\n";
+        }
+
+        // ---------------- QUIT ----------------
+        else if (cmd == "QUIT") {
+            std::string clientid;
+            iss >> clientid;
             if (clientid.empty()) continue;
-            // remove from clients and rooms
+
+            {
+                std::shared_lock<std::shared_mutex> lock(clients_mutex);
+                auto it = client_mq.find(clientid);
+                if (it != client_mq.end())
+                    send_to_mqd(it->second, "SYSTEM: Bye! disconnected");
+            }
+
             {
                 std::unique_lock<std::shared_mutex> lock(clients_mutex);
                 auto it = client_mq.find(clientid);
@@ -278,123 +312,89 @@ void router_thread_func(mqd_t control_mqd) {
                     client_mq.erase(it);
                 }
             }
+
             remove_client_from_all_rooms(clientid);
+
             {
                 std::unique_lock<std::shared_mutex> s(seen_mutex);
                 last_seen.erase(clientid);
             }
-            // optionally broadcast "left" to all rooms - for simplicity just announce top-level
+
             std::string notice = "SYSTEM " + clientid + " quit";
-            // broadcast to everyone (collect all clients)
+
             std::vector<std::string> all;
             {
                 std::shared_lock<std::shared_mutex> lock(clients_mutex);
                 for (auto &p : client_mq) all.push_back(p.first);
             }
             queue_broadcast_to_clients(all, notice);
-        } else if (cmd == "HEARTBEAT") {
-            std::string clientid; iss >> clientid;
+
+            std::cerr << "[SERVER] " << clientid << " quit\n";
+        }
+
+        // ---------------- HEARTBEAT ----------------
+        else if (cmd == "HEARTBEAT") {
+            std::string clientid;
+            iss >> clientid;
             if (clientid.empty()) continue;
+
             {
                 std::unique_lock<std::shared_mutex> s(seen_mutex);
                 last_seen[clientid] = std::chrono::steady_clock::now();
             }
-        } else {
-            std::cerr << "Unknown command: " << cmd << " line=" << line << "\n";
         }
-    } // while
+    }
 }
 
-// heartbeat checker (cleans up dead clients)
+// heartbeat cleaner (optional)
 void heartbeat_checker() {
     while (running) {
         std::this_thread::sleep_for(5s);
-        std::vector<std::string> to_remove;
-        auto now = std::chrono::steady_clock::now();
-        {
-            std::shared_lock<std::shared_mutex> lock(seen_mutex);
-            for (auto &p : last_seen) {
-                if (now - p.second > HEARTBEAT_TIMEOUT) to_remove.push_back(p.first);
-            }
-        }
-        for (auto &clientid : to_remove) {
-            // announce leave
-            remove_client_from_all_rooms(clientid);
-            {
-                std::unique_lock<std::shared_mutex> lock(clients_mutex);
-                auto it = client_mq.find(clientid);
-                if (it != client_mq.end()) {
-                    mq_close(it->second);
-                    client_mq.erase(it);
-                }
-            }
-            {
-                std::unique_lock<std::shared_mutex> s(seen_mutex);
-                last_seen.erase(clientid);
-            }
-            // notify all
-            std::vector<std::string> all;
-            {
-                std::shared_lock<std::shared_mutex> lock(clients_mutex);
-                for (auto &p : client_mq) all.push_back(p.first);
-            }
-            queue_broadcast_to_clients(all, "SYSTEM " + clientid + " timed out/disconnected");
-        }
     }
 }
 
-// cleanup on SIGINT
 mqd_t control_mqd = (mqd_t)-1;
+
 void cleanup_and_exit(int) {
     running = false;
     tasks_cv.notify_all();
-    if (control_mqd != (mqd_t)-1) {
-        mq_close(control_mqd);
-        mq_unlink(CONTROL_QUEUE);
-    }
-    // close other client mqd's
+    mq_close(control_mqd);
+    mq_unlink(CONTROL_QUEUE);
+
     {
         std::unique_lock<std::shared_mutex> lock(clients_mutex);
         for (auto &p : client_mq) mq_close(p.second);
         client_mq.clear();
     }
+
     std::cerr << "Server shutting down\n";
+    fflush(stderr);
+    exit(0);
 }
 
 int main() {
     signal(SIGINT, cleanup_and_exit);
 
-    // create control queue
     struct mq_attr attr;
     attr.mq_flags = 0;
     attr.mq_maxmsg = MAX_MESSAGES;
     attr.mq_msgsize = MAX_MSG_SIZE;
     attr.mq_curmsgs = 0;
-    struct stat sb{};
-    if (stat("/dev/mqueue", &sb) != 0) {
-        std::cerr << "Error: /dev/mqueue not mounted inside container.\n";
-        return 1;
-    }
-    control_mqd = mq_open(CONTROL_QUEUE, O_CREAT | O_RDONLY, 0666, &attr);
-    if (control_mqd == (mqd_t)-1) {
-        std::cerr << "Failed to create control queue: " << strerror(errno) << "\n";
-        return 1;
-    }
-    std::cerr << "Control queue created: " << CONTROL_QUEUE << "\n";
 
-    // spawn broadcasters
+    control_mqd = mq_open(CONTROL_QUEUE, O_CREAT | O_RDONLY, 0666, &attr);
+
+    std::cerr << "Control queue created.\n";
+
     std::vector<std::thread> workers;
-    for (int i=0;i<BROADCAST_WORKERS;i++) workers.emplace_back(broadcaster_worker);
+    for (int i=0;i<BROADCAST_WORKERS;i++)
+        workers.emplace_back(broadcaster_worker);
 
     std::thread router(router_thread_func, control_mqd);
     std::thread heart(heartbeat_checker);
 
-    // main thread waits for router to finish
     router.join();
     heart.join();
-    for (auto &t : workers) {
-        t.join();
-    }
+    for (auto &t : workers) t.join();
 
     cleanup_and_exit(0);
     return 0;
