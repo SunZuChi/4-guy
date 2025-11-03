@@ -1,0 +1,13 @@
+for (auto &cid : expired) {
+    auto now = std::chrono::steady_clock::now();
+    bool really_expired = false;
+    {
+        std::unique_lock<std::shared_mutex> s(seen_mutex);
+        auto it = last_seen.find(cid);
+        if (it == last_seen.end() || now - it->second > HEARTBEAT_TIMEOUT) {
+            really_expired = true;
+            if (it != last_seen.end()) last_seen.erase(it); // ป้องกันซ้ำซ้อน
+        }
+    }
+    if (really_expired) remove_client(cid, true);
+}
