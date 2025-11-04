@@ -258,13 +258,7 @@ void router_thread_func(mqd_t control_mqd) {
             cerr << "[SERVER] " << clientid << " quit\n";
         }
 
-        // --- HEARTBEAT ---
-        else if (cmd == "HEARTBEAT") {
-            string clientid; iss >> clientid;
-            if (clientid.empty()) continue;
-            unique_lock<shared_mutex> s(seen_mutex);
-            last_seen[clientid] = chrono::steady_clock::now();
-        }
+        
     }
 }
 
