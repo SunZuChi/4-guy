@@ -48,10 +48,12 @@ public User login(Scanner in){
         }
 }
  void guest(Scanner in){
-    System.out.print("You are Guest. Not allow for add cart, add shirt");
+    System.out.println("You are Guest. Not allow for add cart, add shirt");
+    list_shirt();
     }
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
     void add_product(Product item){list.add(item);}
+
     void remove_product(Seller seller, int product_id)
     {
     Iterator<Product> it = list.iterator();
@@ -59,12 +61,14 @@ public User login(Scanner in){
         Product p = it.next();
         if (p.product_id == product_id && p.seller == seller){
              it.remove();
-             System.out.println("Remove Successful");
              return;
             }
-
         }
+        
     }
+    public Product getProduct(int index) {
+        return list.get(index);
+}
 
     public void list_shirt(){
         System.out.println("ID   |   Product name  |   Price");
@@ -73,11 +77,12 @@ public User login(Scanner in){
         }
     };
     int search(String target){
-        for (int n = 0 ; n < list.size() ; n++){
-            if (list.get(n) != null && list.get(n).equals(target)){
-                return n;
-            }
-        }
-        return -1;
+    for (int n = 0; n < list.size(); n++){
+        Product p = list.get(n);
+        if (p.brand.equalsIgnoreCase(target)){
+            return n;   
+                }
+         }
+        return -1;  
     }
 }

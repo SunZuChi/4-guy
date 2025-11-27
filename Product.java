@@ -1,6 +1,6 @@
 class Product{
     int product_id;
-    int next = 0;
+    static int next = 1;
     Seller seller;
     String brand, size, quality;
     double price;

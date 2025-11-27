@@ -14,6 +14,7 @@ class Seller extends User{
             System.out.println("Welcome New Seller");
             System.out.println("1. View product ");
             System.out.println("2. Search Product ");
+            System.out.println("3. User detail ");
             System.out.println("0. Exit");
             System.out.print("Choose: ");
             int ch = in.nextInt();
@@ -54,12 +55,22 @@ class Seller extends User{
                     break; 
     
                 case 2:
-                    System.out.println("This is all product in Market");
+                    System.out.print("Search Product: ");
+                    String target = in.nextLine();
+                    int index = market.search(target);
+                    if(index == -1) {
+                    System.out.println("Product not found!");
+                    } else {
+                    Product found = market.getProduct(index);
+                    System.out.println("Found: " + found.brand + " price: " + found.price);
+                    }
                     break;
+
                 
                 case 3:
-                    System.out.println("Search Product: ");
-                    break;  
+                     display_detail();
+                    break;
+                    
                 default:
                       System.out.println("Invalid!");
             }
@@ -67,6 +78,10 @@ class Seller extends User{
                 System.out.println("Bye!");
                 break;
             }
+            System.out.println("Press any key to continue...");
+                    try {
+                        System.in.read();
+                    } catch (Exception e){}
         }
 }
 }

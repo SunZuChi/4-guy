@@ -16,8 +16,10 @@ public static void main(String[] args){
     List<Product> products = new ArrayList<>();
     Seller s1 = new Seller("Nameless", 5000.0, "alice@example.com");
     Seller s2 = new Seller("Ronaldo", 3000.0, "bob@example.com");
+    Buyer admin = new Buyer("Admin Buyer", 90000, "Admin@gmail" );
     market.users.put("Nameless", s1);
     market.users.put("Ronaldo", s2);
+    market.users.put("Admin Buyer", admin);
     products.add(new Product(s1, "Nike", "M", "Excellent", 1200.0));
     products.add(new Product(s2, "Adidas", "L", "Good", 900.0));
     products.add(new Product(s1, "Uniqlo", "S", "Like New", 500.0));
