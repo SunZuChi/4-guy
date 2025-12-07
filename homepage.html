@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title></title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="css and js/homepage.css">
+    <script src="css and js/load-more.js" defer></script>
+    <script src="css and js/sign-in.js" defer></script>
+    <script src="css and js/cart.js" defer></script>
+
+</head>
+<body>
+    <header>
+    <nav>
+    <div class="top-bar">
+        <!-- Left: Search -->
+        <div class="left">
+            <input type="text" placeholder="Search of product">
+            
+        </div>
+
+        <!-- Center: Logo -->
+        <div class="center">
+            <a href="img/logo.png">
+                <img id="logo" src="img/logo.png" alt="">
+            </a>
+        </div>
+
+        <!-- Right: User & Cart -->
+        <div class="right">
+            <img id = "market"  class="icon" src="img/market.png" alt="">
+            <img id = "profilepic" class="icon" src="img/profilepic.png" alt="">
+        </div>
+    </div>
+    </nav>
+</header>
+   
+<!---------------------แถบเมนู-------------------------->
+    <div class="navigate">
+          <div id="textnav">
+       <span class = "top">Brand <i class="fas fa-chevron-down dropdown-icon"></i></span>
+       <span class = "top">Catagories<i class="fas fa-chevron-down dropdown-icon"></i></span>
+       <span class = "top">Sale</span>
+       <span class = "top">Tier List<i class="fas fa-chevron-down dropdown-icon"></i></span>
+       <span class = "top">Payment notification</span>
+           </div>
+    </div>
+<!---------------------Main-------------------------->
+    <main>
+        <div id = "new">
+            <h1>New arrival</h1>
+        </div>
+        <!---------------------กล่องสินค้า-------------------------->
+        <div class="box-contain">
+            <div id="box-contain1" class="box">
+                <img src="img/shirt1.png" alt="">
+            <div class="info"> 
+                <span>City of Shirts</span>
+                <span>$20.00</span>
+            </div>
+        </div>
+            <div id="box-contain2" class="box">
+                    <img src="img/shirt2.png" alt="">
+                <div class="info"> 
+                    <span>City of Shirts</span>
+                    <span>$20.00</span>
+                </div>
+            </div>
+
+            <div id="box-contain3" class="box">
+                    <img src="img/shirt3.png" alt="">
+                <div class="info"> 
+                    <span>City of Shirts</span>
+                    <span>$20.00</span>
+                </div>
+            </div>
+
+            <div id="box-contain4" class="box">
+                    <img src="img/shirt1.png" alt="">
+                <div class="info"> 
+                    <span>City of Shirts</span>
+                    <span>$20.00</span>
+                </div>
+            </div>
+
+            <div id="box-contain5" class="box">
+                    <img src="img/shirt2.png" alt="">
+                <div class="info"> 
+                    <span>City of Shirts</span>
+                    <span>$20.00</span>
+                </div>
+            </div>
+
+            <div id="box-contain6" class="box">
+                    <img src="img/shirt3.png" alt="">
+                <div class="info"> 
+                    <span>City of Shirts</span>
+                    <span>$20.00</span>
+                </div>
+            </div>
+
+            <div id="box-contain7" class="box hidden-product">
+                    <img src="img/shirt1.png" alt="">
+                <div class="info"> 
+                    <span>City of Shirts</span>
+                    <span>$20.00</span>
+                </div>
+            </div>
+
+            <div id="box-contain8" class="box hidden-product">
+                    <img src="img/shirt2.png" alt="">
+                <div class="info"> 
+                    <span>City of Shirts</span>
+                    <span>$20.00</span>
+                </div>
+            </div>
+
+            <div id="box-contain9" class="box hidden-product">
+                    <img src="img/shirt3.png" alt="">
+                <div class="info"> 
+                    <span>City of Shirts</span>
+                    <span>$20.00</span>
+                </div>
+            </div>
+
+            <div id="box-contain10" class="box hidden-product">
+                    <img src="img/shirt1.png" alt="">
+                <div class="info"> 
+                    <span>City of Shirts</span>
+                    <span>$20.00</span>
+                </div>
+            </div>
+
+            <div id="box-contain11" class="box hidden-product">
+                    <img src="img/shirt2.png" alt="">
+                <div class="info"> 
+                    <span>City of Shirts</span>
+                    <span>$20.00</span>
+                </div>
+            </div>
+
+            <div id="box-contain12" class="box hidden-product">
+                    <img src="img/shirt3.png" alt="">
+                <div class="info"> 
+                    <span>City of Shirts</span>
+                    <span>$20.00</span>
+                </div>
+            </div>
+        </div>
+<!---------------------Cart Aside-------------------------->
+    <aside id="cart-panel" class="cart">
+        <div class="cart-header">
+            <h2 id="Shoping-cart">Shopping cart</h2>
+            <button id="close-cart">X</button>
+        </div>
+
+        <div class="cart-body">
+            <img id="cart-img" src="img/cart.png" alt="">
+            <p id = "Shopping-cart">Your cart is empty</p>
+        </div>
+    </aside>
+<!---------------------Cart Aside END-------------------------->  
+<!---------------------Sign in-------------------------->
+    <aside id="sign-panel" class="sign">
+        <div class="sign-header">
+            <h2 id="sign-in">Sign in</h2>
+            <button id="close-sign">X</button>
+        </div>
+
+        <div class="sign-body">
+                <input id = "username" type="text" placeholder="Username">
+                <input id = "password" type="password" placeholder="Password">
+            <div id = "form-contain">
+                <label><input type="checkbox" id ="rem-checkmark">Remember me</label>
+                <p id="forgot-pass">Forgot password?</p>
+            </div>
+            <button id="sign-button">Sign in</button>
+            <div id="sign-in-img">
+                <img id ='profile-img'src="img/profile.png" alt="">
+                <p id ="no-acc">No account yet</p>
+                <p id = "create-acc">Create account</p>
+            </div>
+        </div>
+    </aside>
+<!---------------------Sign in END-------------------------->  
+         <!---------------------Loadmore-------------------------->
+        <div class="button-container">
+            <button id="load-more-button" class="load-more-button">Load more</button>
+        </div>
+    </main>
+<!---------------------Footer-------------------------->
+<footer class="footer">
+  <div class="footer-left">
+    <img id = "logo-footer" src="img/logo.png" alt="">
+    <div class="social-icons">
+       <a href="#"><img src="img/instagram.png" alt="Instagram"></a>
+      <a href="#"><img src="img/facebook.png" alt="Facebook"></a>
+      <a href="#"><img src="img/line.png" alt="Line"></a>
+    </div>
+  </div>
+
+  <div class="footer-right">
+    <ul>
+      <li><a href="#">QUICK LINKS</a></li>
+      <li><a href="#">CONTACT US</a></li>
+      <li><a href="#">SIZE GUIDE</a></li>
+      <li><a href="#">PRIVACY POLICY</a></li>
+      <li><a href="#">SHIPPING & RETURNS</a></li>
+    </ul>
+  </div>
+</footer>
+<!---------------------Footer-------------------------->
+
+</body>
+</html>
